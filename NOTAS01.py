@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import io
 import os
 
 st.set_page_config(page_title="Sistema de Gestão Escolar", page_icon="📚", layout="centered")
@@ -41,12 +40,10 @@ mapa_prefixos = {
 }
 
 def baixar_csv(dados):
-    csv_buffer = io.StringIO()
-    dados.to_csv(csv_buffer, index=False)
-    csv_buffer.seek(0)
+    csv_str = dados.to_csv(index=False)
     st.download_button(
         label="💾 Baixar arquivo CSV",
-        data=csv_buffer,
+        data=csv_str,
         file_name="notas.csv",
         mime="text/csv"
     )
