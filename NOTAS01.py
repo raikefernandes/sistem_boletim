@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 import os
 
 st.set_page_config(page_title="Sistema de Gestão Escolar", page_icon="📚", layout="centered")
@@ -39,22 +40,22 @@ mapa_prefixos = {
     "Educação Religiosa": "EdRe"
 }
 
-def salvar_dados_em_caminho(dados):
-    caminho_csv = st.text_input("💾 Caminho para salvar o CSV (ex: C:/meus_dados/notas.csv):", value="notas.csv")
-    if st.button("Salvar Arquivo CSV"):
-        try:
-            dados.to_csv(caminho_csv, index=False)
-            st.success(f"Arquivo salvo com sucesso em: {caminho_csv}")
-        except Exception as e:
-            st.error(f"Erro ao salvar o arquivo: {e}")
+def baixar_csv(dados):
+    csv_buffer = io.StringIO()
+    dados.to_csv(csv_buffer, index=False)
+    csv_buffer.seek(0)
+    st.download_button(
+        label="💾 Baixar arquivo CSV",
+        data=csv_buffer,
+        file_name="notas.csv",
+        mime="text/csv"
+    )
 
 def exportar_boletim_xml(dados):
     st.markdown("### 📤 Exportar para XML")
-    caminho_xml = st.text_input("Digite o caminho de destino do XML (ex: C:/meus_dados/Boletim_Completo.xml):", value="boletins_xml/Boletim_Completo.xml")
 
     if st.button("Gerar XML Completo"):
         try:
-            os.makedirs(os.path.dirname(caminho_xml), exist_ok=True)
             dados_xml = pd.DataFrame()
             dados_xml["Num"] = dados["Número"]
             dados_xml["Alun"] = dados["Aluno"]
@@ -75,19 +76,20 @@ def exportar_boletim_xml(dados):
                 xml_str += "  </Aluno>\n"
             xml_str += "</Boletins>"
 
-            with open(caminho_xml, "w", encoding="utf-8") as f:
-                f.write(xml_str)
+            xml_bytes = xml_str.encode('utf-8')
 
-            st.success(f"✅ XML exportado com sucesso para: {caminho_xml}")
-            with open(caminho_xml, "rb") as f:
-                st.download_button("📥 Baixar XML Completo", f, file_name=os.path.basename(caminho_xml), mime="application/xml")
+            st.download_button(
+                label="📥 Baixar XML Completo",
+                data=xml_bytes,
+                file_name="Boletim_Completo.xml",
+                mime="application/xml"
+            )
         except Exception as e:
             st.error(f"Erro ao exportar XML: {e}")
 
-    if st.button("Gerar XML por Aluno"):
+    if st.button("Gerar XMLs Individuais"):
         try:
-            output_dir = os.path.join(os.path.dirname(caminho_xml), "boletins_individuais")
-            os.makedirs(output_dir, exist_ok=True)
+            st.markdown("### ⬇️ Downloads dos XMLs Individuais")
             for _, aluno in dados.iterrows():
                 dados_xml = pd.DataFrame()
                 dados_xml["Num"] = [aluno["Número"]]
@@ -103,11 +105,16 @@ def exportar_boletim_xml(dados):
                 for col in dados_xml.columns:
                     xml_str += f"    <{col}>{str(dados_xml[col][0]).strip()}</{col}>\n"
                 xml_str += "  </Aluno>\n</Boletins>"
+
+                xml_bytes = xml_str.encode('utf-8')
                 nome_arquivo = f"{aluno['Aluno'].replace(' ', '_')}_boletim.xml"
-                caminho_final = os.path.join(output_dir, nome_arquivo)
-                with open(caminho_final, "w", encoding="utf-8") as f:
-                    f.write(xml_str)
-            st.success(f"✅ XMLs individuais gerados em: {output_dir}")
+
+                st.download_button(
+                    label=f"📥 Baixar XML de {aluno['Aluno']}",
+                    data=xml_bytes,
+                    file_name=nome_arquivo,
+                    mime="application/xml"
+                )
         except Exception as e:
             st.error(f"Erro ao gerar XMLs individuais: {e}")
 
@@ -152,7 +159,7 @@ if autenticar():
         exportar_boletim_xml(dados)
 
     elif pagina == "Salvar Arquivo CSV":
-        salvar_dados_em_caminho(dados)
+        baixar_csv(dados)
 
     elif pagina == "Lançar Notas":
         st.header("📝 Lançamento de Notas por Ano e Sala")
@@ -181,5 +188,4 @@ if autenticar():
 
             if st.button("💾 Salvar Lançamento"):
                 st.success(f"Notas salvas para {aluno_selecionado} - {ano_escolhido} {sala_escolhida}")
-
 
