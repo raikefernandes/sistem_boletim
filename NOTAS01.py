@@ -132,14 +132,13 @@ if autenticar():
         else:
             st.stop()
 
-    # 🔍 Filtro por Ano e Sala
+    # 🔧 FILTRO POR ANO E SALA (inserido exatamente aqui)
     anos_disponiveis = sorted(dados["Ano"].dropna().unique())
     salas_disponiveis = sorted(dados["Sala"].dropna().unique())
 
     ano_filtrado = st.selectbox("📅 Selecione o ano:", anos_disponiveis)
     sala_filtrada = st.selectbox("🏫 Selecione a sala:", salas_disponiveis)
 
-    # ✅ Aplicar filtro
     dados_filtrados = dados[(dados["Ano"] == ano_filtrado) & (dados["Sala"] == sala_filtrada)]
 
     pagina = st.sidebar.selectbox("Escolha uma página:", [
@@ -156,3 +155,4 @@ if autenticar():
 
     elif pagina == "Salvar Arquivo CSV":
         salvar_dados_em_caminho(dados_filtrados)
+
