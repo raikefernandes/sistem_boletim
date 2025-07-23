@@ -159,36 +159,37 @@ if autenticar():
         baixar_csv(dados)
 
     elif pagina == "Lançar Notas":
-        st.header("📝 Lançamento de Notas por Disciplina")
+        st.header("📝 Lançamento de Notas por Disciplina e Semestre")
 
         anos_disponiveis = dados["Ano"].dropna().unique()
         salas_disponiveis = dados["Sala"].dropna().unique()
         ano_escolhido = st.selectbox("Selecione o Ano:", sorted(anos_disponiveis))
         sala_escolhida = st.selectbox("Selecione a Sala:", sorted(salas_disponiveis))
         disciplina_escolhida = st.selectbox("Selecione a Disciplina:", disciplinas_base)
+        semestre_escolhido = st.selectbox("Selecione o Semestre:", ["S1", "S2", "S3", "S4"])
 
         dados_filtrados = dados[(dados["Ano"] == ano_escolhido) & (dados["Sala"] == sala_escolhida)]
 
         if dados_filtrados.empty:
             st.warning("Nenhum aluno encontrado para o Ano e Sala selecionados.")
         else:
-            st.markdown(f"### Alunos da turma - {disciplina_escolhida}")
+            st.markdown(f"### Alunos da turma - {disciplina_escolhida} - {semestre_escolhido}")
             for idx, aluno in dados_filtrados.iterrows():
                 st.subheader(f"👤 {aluno['Aluno']}")
 
-                for semestre in ["S1", "S2", "S3", "S4"]:
-                    nota_key = f"{disciplina_escolhida} {semestre}"
-                    falta_key = f"{disciplina_escolhida} {semestre} Faltas"
+                nota_key = f"{disciplina_escolhida} {semestre_escolhido}"
+                falta_key = f"{disciplina_escolhida} {semestre_escolhido} Faltas"
 
-                    nota = st.text_input(f"{aluno['Aluno']} - Nota {semestre}", value=str(dados.at[idx, nota_key]), key=f"nota_{idx}_{semestre}")
-                    faltas = st.text_input(f"{aluno['Aluno']} - Faltas {semestre}", value=str(dados.at[idx, falta_key]), key=f"falta_{idx}_{semestre}")
+                nota = st.text_input(f"{aluno['Aluno']} - Nota {semestre_escolhido}", value=str(dados.at[idx, nota_key]), key=f"nota_{idx}")
+                faltas = st.text_input(f"{aluno['Aluno']} - Faltas {semestre_escolhido}", value=str(dados.at[idx, falta_key]), key=f"falta_{idx}")
 
-                    dados.at[idx, nota_key] = nota
-                    dados.at[idx, falta_key] = faltas
+                dados.at[idx, nota_key] = nota
+                dados.at[idx, falta_key] = faltas
 
                 conceito_key = f"{disciplina_escolhida} Conceito Final"
-                conceito = st.text_input(f"{aluno['Aluno']} - Conceito Final", value=str(dados.at[idx, conceito_key]), key=f"conceito_{idx}")
+                conceito = st.text_input(f"{aluno['Aluno']} - Conceito Final (opcional)", value=str(dados.at[idx, conceito_key]), key=f"conceito_{idx}")
                 dados.at[idx, conceito_key] = conceito
 
-            if st.button("💾 Salvar Lançamento para Todos"):
-                st.success("Notas e faltas salvas com sucesso! Vá em 'Salvar Arquivo CSV' para gravar em disco.")
+            if st.button("💾 Salvar Notas do Semestre"):
+                st.success("Notas e faltas salvas com sucesso! Vá em 'Salvar Arquivo CSV' para gravar no arquivo.")
+
