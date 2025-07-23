@@ -2,24 +2,31 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Sistema de Gestão Escolar", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Sistema de Gestão Escolar", page_icon="📚", layout="centered")
 
-# Disciplinas e colunas base
+def autenticar():
+    senha_correta = "admin123"
+    senha = st.text_input("Digite a senha:", type="password")
+    if senha == senha_correta:
+        return True
+    elif senha:
+        st.error("Senha incorreta!")
+    return False
+
+# Disciplinas e colunas
 disciplinas_base = [
     "Língua Portuguesa", "Matemática", "Inglês", "História", "Geografia",
-    "Ciências", "Artes", "Educação Física", "Filosofia", "Educação Religiosa"
+    "Ciências", "Artes", "Educação Física", "filosofia", "Educação Religiosa"
 ]
 
-colunas_base = ["Número", "Aluno", "Ano", "Sala"]
-colunas_notas = []
+colunas = ["Número", "Aluno", "Ano", "Sala"]
 for disc in disciplinas_base:
     for semestre in ["S1", "S2", "S3", "S4"]:
-        colunas_notas.append(f"{disc} {semestre}")
-        colunas_notas.append(f"{disc} {semestre} Faltas")
-    colunas_notas.append(f"{disc} Conceito Final")
+        colunas.append(f"{disc} {semestre}")
+        colunas.append(f"{disc} {semestre} Faltas")
+    colunas.append(f"{disc} Conceito Final")
 
-colunas = colunas_base + colunas_notas
-
+# Mapeamento dos prefixos curtos
 mapa_prefixos = {
     "Língua Portuguesa": "Lp",
     "Matemática": "Mat",
@@ -29,141 +36,22 @@ mapa_prefixos = {
     "Ciências": "Cie",
     "Artes": "Arte",
     "Educação Física": "EdFi",
-    "Filosofia": "Filo",
+    "filosofia": "Filo",
     "Educação Religiosa": "EdRe"
 }
 
-# Mapa invertido para reconhecer prefixos
-prefixos_invertidos = {v: k for k, v in mapa_prefixos.items()}
-
-def abreviado_para_completo(col):
-    if col == "Num":
-        return "Número"
-    if col == "Alun":
-        return "Aluno"
-    if col == "Ano":
-        return "Ano"
-    if col == "Sala":
-        return "Sala"
-    for prefixo, nome_completo in prefixos_invertidos.items():
-        if col.startswith(prefixo):
-            sufixo = col[len(prefixo):]  # ex: "S1", "F1", "CF"
-            if sufixo.startswith("S"):
-                # Nota do semestre
-                return f"{nome_completo} {sufixo}"
-            elif sufixo.startswith("F") and len(sufixo) == 2 and sufixo[1].isdigit():
-                # Faltas do semestre, ex: F1 -> " S1 Faltas"
-                semestre_num = sufixo[1]
-                return f"{nome_completo} S{semestre_num} Faltas"
-            elif sufixo == "CF":
-                # Conceito final
-                return f"{nome_completo} Conceito Final"
-    return col
-
-def autenticar():
-    senha_correta = "admin123"
-    senha = st.sidebar.text_input("Digite a senha:", type="password")
-    if senha == senha_correta:
-        return True
-    elif senha:
-        st.sidebar.error("Senha incorreta!")
-    return False
-
-def pagina_upload_criacao():
-    st.title("📂 Carregar ou Criar Tabela")
-    uploaded_file = st.file_uploader("Selecione um arquivo CSV para carregar:", type="csv")
-    if uploaded_file:
+def salvar_dados_em_caminho(dados):
+    caminho_csv = st.text_input("💾 Caminho para salvar o CSV (ex: C:/meus_dados/notas.csv):", value="notas.csv")
+    if st.button("Salvar Arquivo CSV"):
         try:
-            dados = pd.read_csv(uploaded_file, encoding="utf-8-sig")
-            dados.rename(columns=lambda c: abreviado_para_completo(c), inplace=True)
-            faltantes = [c for c in colunas if c not in dados.columns]
-            if faltantes:
-                st.error(f"Colunas faltando no arquivo: {faltantes}")
-                return None
-            st.success("Arquivo carregado com sucesso!")
-            return dados
+            dados.to_csv(caminho_csv, index=False)
+            st.success(f"Arquivo salvo com sucesso em: {caminho_csv}")
         except Exception as e:
-            st.error(f"Erro ao ler arquivo: {e}")
-            return None
-    else:
-        if st.button("Criar tabela vazia do zero"):
-            dados = pd.DataFrame(columns=colunas)
-            st.success("Tabela criada com sucesso!")
-            return dados
-    st.info("Por favor, carregue um arquivo CSV ou crie uma tabela para continuar.")
-    return None
+            st.error(f"Erro ao salvar o arquivo: {e}")
 
-def cadastrar_aluno():
-    st.header("Cadastro de Alunos")
-    with st.form("form_cadastro"):
-        numero = st.text_input("Número do aluno")
-        nome = st.text_input("Nome do aluno")
-        ano = st.selectbox("Ano", options=[str(i) for i in range(1, 13)])
-        sala = st.text_input("Sala")
-        submitted = st.form_submit_button("Adicionar aluno")
-        if submitted:
-            if not (numero and nome and ano and sala):
-                st.error("Preencha todos os campos!")
-                return
-            try:
-                numero_int = int(numero)
-            except:
-                st.error("Número deve ser inteiro!")
-                return
-            dados = st.session_state["dados"]
-            if numero_int in dados["Número"].values:
-                st.warning("Número já cadastrado!")
-                return
-            nova_linha = {col: "" for col in colunas}
-            nova_linha["Número"] = numero_int
-            nova_linha["Aluno"] = nome
-            nova_linha["Ano"] = ano
-            nova_linha["Sala"] = sala
-            st.session_state["dados"] = pd.concat([dados, pd.DataFrame([nova_linha])], ignore_index=True)
-            st.success(f"Aluno {nome} adicionado!")
-
-def lancar_notas():
-    st.header("Lançamento de Notas")
-    dados = st.session_state["dados"]
-    if dados.empty:
-        st.warning("Nenhum aluno cadastrado.")
-        return
-    
-    anos = sorted(dados["Ano"].dropna().unique())
-    ano_sel = st.selectbox("Ano", options=anos)
-    salas = sorted(dados.loc[dados["Ano"] == ano_sel, "Sala"].dropna().unique())
-    sala_sel = st.selectbox("Sala", options=salas)
-    disc_sel = st.selectbox("Disciplina", options=disciplinas_base)
-
-    alunos_filtrados = dados[(dados["Ano"] == ano_sel) & (dados["Sala"] == sala_sel)]
-    if alunos_filtrados.empty:
-        st.warning("Nenhum aluno encontrado para este filtro.")
-        return
-
-    semestre_sel = st.selectbox("Semestre", options=["S1", "S2", "S3", "S4"])
-
-    edit_cols = ["Número", "Aluno", f"{disc_sel} {semestre_sel}", f"{disc_sel} {semestre_sel} Faltas", f"{disc_sel} Conceito Final"]
-    df_edit = alunos_filtrados[edit_cols].copy()
-
-    edited_df = st.data_editor(df_edit, num_rows="dynamic")
-
-    if st.button("Salvar notas e faltas"):
-        for idx, row in edited_df.iterrows():
-            numero = row["Número"]
-            idx_df = st.session_state["dados"][st.session_state["dados"]["Número"] == numero].index[0]
-            st.session_state["dados"].at[idx_df, f"{disc_sel} {semestre_sel}"] = row[f"{disc_sel} {semestre_sel}"]
-            st.session_state["dados"].at[idx_df, f"{disc_sel} {semestre_sel} Faltas"] = row[f"{disc_sel} {semestre_sel} Faltas"]
-            st.session_state["dados"].at[idx_df, f"{disc_sel} Conceito Final"] = row[f"{disc_sel} Conceito Final"]
-        st.success("Notas, faltas e conceito final atualizados!")
-
-def visualizar_dados():
-    st.header("Visualizar Dados")
-    st.dataframe(st.session_state["dados"])
-
-def exportar_boletim_xml():
-    st.header("Exportar Boletins em XML")
-    dados = st.session_state["dados"]
-    caminho_xml = st.text_input("Caminho para salvar XML (ex: boletins_xml/Boletim_Completo.xml)", value="boletins_xml/Boletim_Completo.xml")
+def exportar_boletim_xml(dados):
+    st.markdown("### 📤 Exportar para XML")
+    caminho_xml = st.text_input("Digite o caminho de destino do XML (ex: C:/meus_dados/Boletim_Completo.xml):", value="boletins_xml/Boletim_Completo.xml")
 
     if st.button("Gerar XML Completo"):
         try:
@@ -192,7 +80,6 @@ def exportar_boletim_xml():
                 f.write(xml_str)
 
             st.success(f"✅ XML exportado com sucesso para: {caminho_xml}")
-
             with open(caminho_xml, "rb") as f:
                 st.download_button("📥 Baixar XML Completo", f, file_name=os.path.basename(caminho_xml), mime="application/xml")
         except Exception as e:
@@ -225,43 +112,47 @@ def exportar_boletim_xml():
         except Exception as e:
             st.error(f"Erro ao gerar XMLs individuais: {e}")
 
-def salvar_csv():
-    st.header("Salvar Arquivo CSV")
-    caminho_csv = st.text_input("Caminho para salvar o CSV:", value="notas.csv")
-    if st.button("Salvar CSV"):
-        try:
-            st.session_state["dados"].to_csv(caminho_csv, index=False, encoding="utf-8-sig")
-            st.success(f"Arquivo salvo em {caminho_csv}")
-        except Exception as e:
-            st.error(f"Erro ao salvar: {e}")
-
 st.title("📚 Sistema de Gestão Escolar")
 
 if autenticar():
-    if "dados" not in st.session_state or st.session_state["dados"] is None:
-        dados = pagina_upload_criacao()
-        if dados is not None:
-            st.session_state["dados"] = dados
+    st.success("Acesso concedido ✅")
+
+    uploaded_file = st.file_uploader("📂 Selecione o arquivo de notas (CSV):", type="csv")
+
+    if uploaded_file:
+        dados = pd.read_csv(uploaded_file)
+        if not all(col in dados.columns for col in colunas):
+            st.error("❌ As colunas do arquivo estão incompatíveis.")
+            st.stop()
+    else:
+        st.warning("⚠️ Nenhum arquivo CSV carregado.")
+        if st.button("📋 Criar nova tabela do zero"):
+            dados = pd.DataFrame(columns=colunas)
+            st.success("Tabela criada com sucesso!")
         else:
             st.stop()
 
-    pagina = st.sidebar.selectbox("Navegação", [
-        "Cadastro de Alunos",
-        "Lançamento de Notas",
+    # 🔍 Filtro por Ano e Sala
+    anos_disponiveis = sorted(dados["Ano"].dropna().unique())
+    salas_disponiveis = sorted(dados["Sala"].dropna().unique())
+
+    ano_filtrado = st.selectbox("📅 Selecione o ano:", anos_disponiveis)
+    sala_filtrada = st.selectbox("🏫 Selecione a sala:", salas_disponiveis)
+
+    # ✅ Aplicar filtro
+    dados_filtrados = dados[(dados["Ano"] == ano_filtrado) & (dados["Sala"] == sala_filtrada)]
+
+    pagina = st.sidebar.selectbox("Escolha uma página:", [
         "Visualizar Dados",
         "Exportar Boletins em XML",
-        "Salvar CSV"
+        "Salvar Arquivo CSV"
     ])
 
-    if pagina == "Cadastro de Alunos":
-        cadastrar_aluno()
-    elif pagina == "Lançamento de Notas":
-        lancar_notas()
-    elif pagina == "Visualizar Dados":
-        visualizar_dados()
+    if pagina == "Visualizar Dados":
+        st.dataframe(dados_filtrados)
+
     elif pagina == "Exportar Boletins em XML":
-        exportar_boletim_xml()
-    elif pagina == "Salvar CSV":
-        salvar_csv()
-else:
-    st.warning("Por favor, digite a senha para continuar.")
+        exportar_boletim_xml(dados_filtrados)
+
+    elif pagina == "Salvar Arquivo CSV":
+        salvar_dados_em_caminho(dados_filtrados)
