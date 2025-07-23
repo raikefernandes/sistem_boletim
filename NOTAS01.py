@@ -39,14 +39,27 @@ mapa_prefixos = {
     "Educação Religiosa": "EdRe"
 }
 
-def baixar_csv(dados):
-    csv_str = dados.to_csv(index=False)
-    st.download_button(
-        label="💾 Baixar arquivo CSV",
-        data=csv_str,
-        file_name="notas.csv",
-        mime="text/csv"
-    )
+def exportar_csv_estilo_xml(dados):
+    try:
+        dados_export = pd.DataFrame()
+        dados_export["Num"] = dados["Número"]
+        dados_export["Alun"] = dados["Aluno"]
+        dados_export["Ano"] = dados["Ano"]
+        dados_export["Sala"] = dados["Sala"]
+        for disc, prefixo in mapa_prefixos.items():
+            for i, semestre in enumerate(["S1", "S2", "S3", "S4"], start=1):
+                dados_export[f"{prefixo}S{i}"] = dados[f"{disc} {semestre}"]
+                dados_export[f"{prefixo}F{i}"] = dados[f"{disc} {semestre} Faltas"]
+            dados_export[f"{prefixo}CF"] = dados[f"{disc} Conceito Final"]
+        csv_str = dados_export.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Baixar CSV no Esquema XML",
+            data=csv_str,
+            file_name="notas_esquema_xml.csv",
+            mime="text/csv"
+        )
+    except Exception as e:
+        st.error(f"Erro ao exportar CSV: {e}")
 
 def exportar_boletim_xml(dados):
     st.markdown("### 📤 Exportar para XML")
@@ -157,7 +170,7 @@ if autenticar():
         exportar_boletim_xml(dados)
 
     elif pagina == "Salvar Arquivo CSV":
-        baixar_csv(dados)
+        exportar_csv_estilo_xml(dados)
 
     elif pagina == "Lançar Notas":
         st.header("📝 Lançamento de Notas por Disciplina e Semestre")
@@ -186,10 +199,6 @@ if autenticar():
 
                 dados.at[idx, nota_key] = nota
                 dados.at[idx, falta_key] = faltas
-
-                conceito_key = f"{disciplina_escolhida} Conceito Final"
-                conceito = st.text_input(f"{aluno['Aluno']} - Conceito Final (opcional)", value=str(dados.at[idx, conceito_key]), key=f"conceito_{idx}")
-                dados.at[idx, conceito_key] = conceito
 
             if st.button("💾 Salvar Notas do Semestre"):
                 try:
