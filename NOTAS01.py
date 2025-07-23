@@ -26,7 +26,6 @@ for disc in disciplinas_base:
         colunas.append(f"{disc} {semestre} Faltas")
     colunas.append(f"{disc} Conceito Final")
 
-# Mapeamento dos prefixos curtos
 mapa_prefixos = {
     "Língua Portuguesa": "Lp",
     "Matemática": "Mat",
@@ -132,27 +131,55 @@ if autenticar():
         else:
             st.stop()
 
-    # 🔧 FILTRO POR ANO E SALA (inserido exatamente aqui)
-    anos_disponiveis = sorted(dados["Ano"].dropna().unique())
-    salas_disponiveis = sorted(dados["Sala"].dropna().unique())
-
-    ano_filtrado = st.selectbox("📅 Selecione o ano:", anos_disponiveis)
-    sala_filtrada = st.selectbox("🏫 Selecione a sala:", salas_disponiveis)
-
-    dados_filtrados = dados[(dados["Ano"] == ano_filtrado) & (dados["Sala"] == sala_filtrada)]
-
     pagina = st.sidebar.selectbox("Escolha uma página:", [
         "Visualizar Dados",
         "Exportar Boletins em XML",
-        "Salvar Arquivo CSV"
+        "Salvar Arquivo CSV",
+        "Lançar Notas"
     ])
 
     if pagina == "Visualizar Dados":
+        st.markdown("### 🔍 Filtros de Visualização")
+        anos_disponiveis = dados["Ano"].dropna().unique()
+        salas_disponiveis = dados["Sala"].dropna().unique()
+        ano_selecionado = st.selectbox("Selecione o Ano:", sorted(anos_disponiveis))
+        sala_selecionada = st.selectbox("Selecione a Sala:", sorted(salas_disponiveis))
+        dados_filtrados = dados[(dados["Ano"] == ano_selecionado) & (dados["Sala"] == sala_selecionada)]
+        st.markdown(f"### 📋 Alunos do Ano {ano_selecionado}, Sala {sala_selecionada}")
         st.dataframe(dados_filtrados)
 
     elif pagina == "Exportar Boletins em XML":
-        exportar_boletim_xml(dados_filtrados)
+        exportar_boletim_xml(dados)
 
     elif pagina == "Salvar Arquivo CSV":
-        salvar_dados_em_caminho(dados_filtrados)
+        salvar_dados_em_caminho(dados)
+
+    elif pagina == "Lançar Notas":
+        st.header("📝 Lançamento de Notas por Ano e Sala")
+        anos_disponiveis = dados["Ano"].dropna().unique()
+        salas_disponiveis = dados["Sala"].dropna().unique()
+        ano_escolhido = st.selectbox("Selecione o Ano:", sorted(anos_disponiveis))
+        sala_escolhida = st.selectbox("Selecione a Sala:", sorted(salas_disponiveis))
+        dados_filtrados = dados[(dados["Ano"] == ano_escolhido) & (dados["Sala"] == sala_escolhida)]
+
+        if dados_filtrados.empty:
+            st.warning("Nenhum aluno encontrado para o Ano e Sala selecionados.")
+        else:
+            aluno_selecionado = st.selectbox("Selecione o Aluno:", dados_filtrados["Aluno"])
+            aluno_idx = dados[(dados["Ano"] == ano_escolhido) & (dados["Sala"] == sala_escolhida) & (dados["Aluno"] == aluno_selecionado)].index[0]
+
+            for disc in disciplinas_base:
+                st.subheader(f"📘 {disc}")
+                for semestre in ["S1", "S2", "S3", "S4"]:
+                    nota = st.text_input(f"Nota {semestre} - {disc}", value=str(dados.at[aluno_idx, f"{disc} {semestre}"]))
+                    faltas = st.text_input(f"Faltas {semestre} - {disc}", value=str(dados.at[aluno_idx, f"{disc} {semestre} Faltas"]))
+                    dados.at[aluno_idx, f"{disc} {semestre}"] = nota
+                    dados.at[aluno_idx, f"{disc} {semestre} Faltas"] = faltas
+
+                conceito = st.text_input(f"Conceito Final - {disc}", value=str(dados.at[aluno_idx, f"{disc} Conceito Final"]))
+                dados.at[aluno_idx, f"{disc} Conceito Final"] = conceito
+
+            if st.button("💾 Salvar Lançamento"):
+                st.success(f"Notas salvas para {aluno_selecionado} - {ano_escolhido} {sala_escolhida}")
+
 
