@@ -124,6 +124,7 @@ if autenticar():
 
     if uploaded_file:
         dados = pd.read_csv(uploaded_file)
+        nome_arquivo_salvar = uploaded_file.name
         if not all(col in dados.columns for col in colunas):
             st.error("❌ As colunas do arquivo estão incompatíveis.")
             st.stop()
@@ -131,6 +132,7 @@ if autenticar():
         st.warning("⚠️ Nenhum arquivo CSV carregado.")
         if st.button("📋 Criar nova tabela do zero"):
             dados = pd.DataFrame(columns=colunas)
+            nome_arquivo_salvar = "notas.csv"
             st.success("Tabela criada com sucesso!")
         else:
             st.stop()
@@ -191,5 +193,9 @@ if autenticar():
                 dados.at[idx, conceito_key] = conceito
 
             if st.button("💾 Salvar Notas do Semestre"):
-                st.success("Notas e faltas salvas com sucesso! Vá em 'Salvar Arquivo CSV' para gravar no arquivo.")
+                try:
+                    dados.to_csv(nome_arquivo_salvar, index=False)
+                    st.success(f"Notas salvas com sucesso no arquivo: {nome_arquivo_salvar}")
+                except Exception as e:
+                    st.error(f"Erro ao salvar o arquivo: {e}")
 
