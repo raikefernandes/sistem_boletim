@@ -53,28 +53,28 @@ def exportar_boletim_xml(dados):
 
     if st.button("Gerar XML Completo"):
         try:
-            dados_xml = pd.DataFrame()
-            dados_xml["Num"] = dados["Número"]
-            dados_xml["Alun"] = dados["Aluno"]
-            dados_xml["Ano"] = dados["Ano"]
-            dados_xml["Sala"] = dados["Sala"]
-
-            for disc, prefixo in mapa_prefixos.items():
-                for i, semestre in enumerate(["S1", "S2", "S3", "S4"], start=1):
-                    dados_xml[f"{prefixo}S{i}"] = dados[f"{disc} {semestre}"]
-                    dados_xml[f"{prefixo}F{i}"] = dados[f"{disc} {semestre} Faltas"]
-                dados_xml[f"{prefixo}CF"] = dados[f"{disc} Conceito Final"]
-
             xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n<Boletins>\n'
-            for _, row in dados_xml.iterrows():
+
+            for _, row in dados.iterrows():
                 xml_str += "  <Aluno>\n"
-                for col in dados_xml.columns:
-                    xml_str += f"    <{col}>{str(row[col]).strip()}</{col}>\n"
+                xml_str += f"    <Num>{row['Número']}</Num>\n"
+                xml_str += f"    <Alun>{row['Aluno']}</Alun>\n"
+                xml_str += f"    <Ano>{row['Ano']}</Ano>\n"
+                xml_str += f"    <Sala>{row['Sala']}</Sala>\n"
+
+                for disc, prefixo in mapa_prefixos.items():
+                    for i, semestre in enumerate(["S1", "S2", "S3", "S4"], start=1):
+                        nota = row.get(f"{disc} {semestre}", "nan")
+                        faltas = row.get(f"{disc} {semestre} Faltas", "nan")
+                        xml_str += f"    <{prefixo}S{i}>{nota}</{prefixo}S{i}>\n"
+                        xml_str += f"    <{prefixo}F{i}>{faltas}</{prefixo}F{i}>\n"
+                    conceito = row.get(f"{disc} Conceito Final", "nan")
+                    xml_str += f"    <{prefixo}CF>{conceito}</{prefixo}CF>\n"
+
                 xml_str += "  </Aluno>\n"
             xml_str += "</Boletins>"
 
             xml_bytes = xml_str.encode('utf-8')
-
             st.download_button(
                 label="📥 Baixar XML Completo",
                 data=xml_bytes,
@@ -86,28 +86,29 @@ def exportar_boletim_xml(dados):
 
     if st.button("Gerar XMLs Individuais"):
         try:
-            st.markdown("### ⬇️ Downloads dos XMLs Individuais")
-            for _, aluno in dados.iterrows():
-                dados_xml = pd.DataFrame()
-                dados_xml["Num"] = [aluno["Número"]]
-                dados_xml["Alun"] = [aluno["Aluno"]]
-                dados_xml["Ano"] = [aluno["Ano"]]
-                dados_xml["Sala"] = [aluno["Sala"]]
+            for _, row in dados.iterrows():
+                xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n<Boletins>\n'
+                xml_str += "  <Aluno>\n"
+                xml_str += f"    <Num>{row['Número']}</Num>\n"
+                xml_str += f"    <Alun>{row['Aluno']}</Alun>\n"
+                xml_str += f"    <Ano>{row['Ano']}</Ano>\n"
+                xml_str += f"    <Sala>{row['Sala']}</Sala>\n"
+
                 for disc, prefixo in mapa_prefixos.items():
                     for i, semestre in enumerate(["S1", "S2", "S3", "S4"], start=1):
-                        dados_xml[f"{prefixo}S{i}"] = [aluno[f"{disc} {semestre}"]]
-                        dados_xml[f"{prefixo}F{i}"] = [aluno[f"{disc} {semestre} Faltas"]]
-                    dados_xml[f"{prefixo}CF"] = [aluno[f"{disc} Conceito Final"]]
-                xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n<Boletins>\n  <Aluno>\n'
-                for col in dados_xml.columns:
-                    xml_str += f"    <{col}>{str(dados_xml[col][0]).strip()}</{col}>\n"
+                        nota = row.get(f"{disc} {semestre}", "nan")
+                        faltas = row.get(f"{disc} {semestre} Faltas", "nan")
+                        xml_str += f"    <{prefixo}S{i}>{nota}</{prefixo}S{i}>\n"
+                        xml_str += f"    <{prefixo}F{i}>{faltas}</{prefixo}F{i}>\n"
+                    conceito = row.get(f"{disc} Conceito Final", "nan")
+                    xml_str += f"    <{prefixo}CF>{conceito}</{prefixo}CF>\n"
+
                 xml_str += "  </Aluno>\n</Boletins>"
 
                 xml_bytes = xml_str.encode('utf-8')
-                nome_arquivo = f"{aluno['Aluno'].replace(' ', '_')}_boletim.xml"
-
+                nome_arquivo = f"{row['Aluno'].replace(' ', '_')}_boletim.xml"
                 st.download_button(
-                    label=f"📥 Baixar XML de {aluno['Aluno']}",
+                    label=f"📥 Baixar XML de {row['Aluno']}",
                     data=xml_bytes,
                     file_name=nome_arquivo,
                     mime="application/xml"
